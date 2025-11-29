@@ -38,6 +38,49 @@ Gestion d'images:
 
 ### Structure des dossiers
 
+## 🎮 Interface Publique (V2)
+
+### Routes publiques
+
+```
+app/(public)/
+├── layout.tsx                      # Layout public (sans sidebar)
+├── page.tsx                        # Page d'accueil
+├── quiz/
+│   ├── setup/
+│   │   └── page.tsx               # Configuration quiz
+│   ├── play/
+│   │   └── page.tsx               # Session quiz
+│   └── results/
+│       └── page.tsx               # Résultats quiz
+└── revision/
+    ├── setup/
+    │   └── page.tsx               # Configuration révision
+    ├── play/
+    │   └── page.tsx               # Session révision
+    └── results/
+        └── page.tsx               # Résultats révision
+```
+
+### Composants publics
+
+```
+components/public/
+├── public-header.tsx              # Header avec lien admin
+├── public-footer.tsx              # Footer simple
+├── mode-selector.tsx              # Sélection mode (Quiz/Révision)
+├── pseudonym-manager.tsx          # Gestion pseudonyme
+├── category-selector.tsx          # Sélecteur 3 états
+├── question-display.tsx           # Affichage question
+├── answer-selector.tsx            # Sélection réponses
+├── quiz-progress.tsx              # Progression quiz
+├── revision-progress.tsx          # Progression révision
+├── results-summary.tsx            # Résumé résultats
+├── results-details.tsx            # Détails questions
+├── save-score-dialog.tsx          # Dialog sauvegarde
+└── exit-confirmation.tsx          # Confirmation sortie
+```
+
 ```
 rev-train-essai/
 ├── app/
@@ -216,6 +259,63 @@ rev-train-essai/
   ],
   completedAt: Date
 }
+
+### Collection: `quizSessions` (V2)
+
+```typescript
+{
+  _id: ObjectId,
+  pseudonym: string,
+  mode: "quiz",
+  score: {
+    correct: number,
+    total: number,
+    percentage: number
+  },
+  settings: {
+    questionCount: number,
+    selectedCategories: ObjectId[],
+    bannedCategories: ObjectId[]
+  },
+  results: [
+    {
+      questionId: ObjectId,
+      questionTitle: string,
+      userAnswers: string[],          // IDs réponses sélectionnées
+      correctAnswers: string[],
+      isCorrect: boolean,
+      categories: ObjectId[]
+    }
+  ],
+  duration: number,                   // En secondes
+  completedAt: Date,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Collection: `revisionSessions` (V2)
+
+```typescript
+{
+  _id: ObjectId,
+  pseudonym: string,
+  mode: "revision",
+  settings: {
+    selectedCategories: ObjectId[]
+  },
+  stats: {
+    totalAnswers: number,
+    correctAnswers: number,
+    incorrectAnswers: number,
+    questionsValidated: number
+  },
+  duration: number,                   // En secondes
+  completedAt: Date,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
 ```
 
 ## 🔐 Système d'authentification
@@ -298,6 +398,20 @@ graph TD
     A[Upload fichier] --> B{Validation}
     B -->|Type invalide| C[Erreur]
     B -->|OK| D[Sharp: Resize]
+
+// Quiz (V2)
+POST   /api/quiz/generate         // Générer quiz
+POST   /api/quiz/sessions         // Sauvegarder session
+GET    /api/quiz/sessions         // Récupérer sessions utilisateur
+
+// Revision (V2)
+POST   /api/revision/generate     // Générer révision
+POST   /api/revision/sessions     // Sauvegarder session
+GET    /api/revision/sessions     // Récupérer sessions utilisateur
+
+// Public (V2)
+GET    /api/public/stats          // Statistiques publiques
+GET    /api/public/categories     // Catégories publiques
     D --> E[Conversion WebP]
     E --> F{Taille > 20KB?}
     F -->|Oui| G[Réduire qualité]
@@ -708,3 +822,9 @@ Après validation de cette architecture, nous procéderons à l'implémentation 
 **Version**: 1.0  
 **Date**: 2025-11-29  
 **Auteur**: Kilo Code (Architect Mode)
+**Version**: 2.0  
+**Date**: 2025-11-29  
+**Dernière mise à jour**: 2025-11-29 (V2 - Interface Publique)  
+**Auteur**: Kilo Code
+
+---

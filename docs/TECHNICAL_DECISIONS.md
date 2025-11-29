@@ -452,4 +452,212 @@ app/
 
 **Version**: 1.0  
 **Date**: 2025-11-29  
+
+---
+
+## 🆕 Décisions Techniques V2 - Interface Publique
+
+### 16. Middleware → Proxy (Next.js 16)
+
+**Choix**: Migration vers `proxy.ts`
+
+**Justifications**:
+- ✅ Next.js 16 déprécie `middleware.ts`
+- ✅ Nouvelle convention `proxy.ts` avec fonction `proxy()`
+- ✅ Même fonctionnalité, nouvelle API
+- ✅ Protection ciblée (backoffice uniquement)
+
+**Stratégie**:
+```typescript
+// Protection uniquement des routes backoffice
+const protectedRoutes = ['/dashboard', '/questions', '/categories', '/category-types'];
+// Toutes les autres routes sont publiques par défaut
+```
+
+---
+
+### 17. Gestion d'état des sessions
+
+**Choix**: SessionStorage pour données temporaires + localStorage pour préférences
+
+**Justifications**:
+- ✅ SessionStorage: Données de session (questions, résultats)
+- ✅ localStorage: Préférences utilisateur (pseudonyme, paramètres)
+- ✅ Pas besoin de Redux/Zustand pour ce cas d'usage
+- ✅ Simple et performant
+- ✅ Nettoyage automatique (sessionStorage)
+
+**Usage**:
+```typescript
+// Session en cours
+sessionStorage.setItem('quiz-data', JSON.stringify(quizData));
+
+// Préférences persistantes
+localStorage.setItem('pseudonym', pseudonym);
+```
+
+**Alternatives considérées**:
+- ❌ Redux: Overkill pour gestion simple
+- ❌ Zustand: Pas nécessaire
+- ❌ React Context: Perte données au refresh
+
+---
+
+### 18. Animations
+
+**Choix**: Framer Motion pour transitions
+
+**Justifications**:
+- ✅ Animations déclaratives React
+- ✅ AnimatePresence pour transitions fluides
+- ✅ Performance optimale
+- ✅ API simple et intuitive
+- ✅ Support TypeScript
+
+**Animations implémentées**:
+```typescript
+// Slide horizontal entre questions
+initial={{ x: 100, opacity: 0 }}
+animate={{ x: 0, opacity: 1 }}
+exit={{ x: -100, opacity: 0 }}
+transition={{ duration: 0.3, ease: 'easeInOut' }}
+```
+
+**Alternatives considérées**:
+- ❌ CSS transitions: Moins flexible
+- ❌ React Spring: Plus complexe
+- ❌ GSAP: Bundle size plus gros
+
+---
+
+### 19. Logique de répétition espacée
+
+**Choix**: Système custom avec Map<questionId, state>
+
+**Justifications**:
+- ✅ Contrôle total sur la logique
+- ✅ Map pour accès O(1)
+- ✅ État par question (correctCount, isValidated)
+- ✅ Réinitialisation si erreur
+- ✅ Simple à comprendre et maintenir
+
+**Algorithme**:
+```typescript
+// État par question
+{
+  correctCount: 0,      // 0, 1, ou 2
+  isValidated: false    // true si >= 2
+}
+
+// Logique
+if (correct) {
+  correctCount++
+  if (correctCount >= 2) isValidated = true
+} else {
+  correctCount = 0  // Reset
+}
+```
+
+**Alternatives considérées**:
+- ❌ Algorithme SM-2 (SuperMemo): Trop complexe
+- ❌ Leitner system: Pas adapté au besoin
+- ❌ Sauvegarde en DB: Overhead inutile
+
+---
+
+### 20. Sélecteur de catégories 3 états
+
+**Choix**: Composant custom avec cycle d'états
+
+**Justifications**:
+- ✅ UX intuitive (clic pour cycler)
+- ✅ États visuels clairs (couleurs + icônes)
+- ✅ Réutilisable (quiz et révision)
+- ✅ Mode adaptatif (2 ou 3 états)
+
+**États**:
+```typescript
+// Mode Quiz
+unselected (○ gris) → selected (✓ bleu) → banned (✗ rouge) → unselected
+
+// Mode Révision
+unselected (○ gris) ↔ selected (✓ bleu)
+```
+
+**Alternatives considérées**:
+- ❌ 3 boutons radio: Moins intuitif
+- ❌ Checkboxes multiples: Confus
+- ❌ Dropdown: Moins visuel
+
+---
+
+### 21. Validation des réponses
+
+**Choix**: Récupération depuis API backend
+
+**Justifications**:
+- ✅ Sécurité: Pas de réponses correctes dans le frontend
+- ✅ Évite la triche (inspection du code)
+- ✅ Source de vérité unique (DB)
+- ✅ Permet modifications sans rebuild
+
+**Flow**:
+```typescript
+1. User sélectionne réponses
+2. Clic "Valider"
+3. Fetch /api/questions/[id] (avec correctAnswers)
+4. Comparaison côté client
+5. Affichage feedback
+```
+
+**Alternatives considérées**:
+- ❌ Réponses dans quiz-data: Risque de triche
+- ❌ Hash des réponses: Complexe et cassable
+- ❌ Validation côté serveur: Latence
+
+---
+
+### 22. Gestion du pseudonyme
+
+**Choix**: localStorage avec validation
+
+**Justifications**:
+- ✅ Persistance entre sessions
+- ✅ Pas besoin de compte utilisateur
+- ✅ UX améliorée (pré-remplissage)
+- ✅ Validation stricte (regex, longueur)
+
+**Validation**:
+```typescript
+- Min 2 caractères
+- Max 50 caractères
+- Regex: /^[a-zA-Z0-9_\-\s]+$/
+- Trim automatique
+```
+
+**Alternatives considérées**:
+- ❌ Cookies: Moins accessible côté client
+- ❌ Comptes utilisateurs: Trop complexe
+- ❌ Pas de sauvegarde: Mauvaise UX
+
+---
+
+## 🎯 Résumé des décisions V2
+
+| Aspect | Choix | Raison principale |
+|--------|-------|-------------------|
+| Middleware | proxy.ts | Next.js 16 convention |
+| État sessions | SessionStorage | Temporaire, auto-cleanup |
+| Préférences | localStorage | Persistance utilisateur |
+| Animations | Framer Motion | Performant, React-native |
+| Répétition | Custom Map | Contrôle total, simple |
+| Catégories | 3 états cycliques | UX intuitive |
+| Validation | API backend | Sécurité anti-triche |
+| Pseudonyme | localStorage | Persistance sans compte |
+
+---
+
+**Version**: 2.0  
+**Date**: 2025-11-29  
+**Statut**: Implémenté et validé
 **Statut**: Validé pour implémentation
