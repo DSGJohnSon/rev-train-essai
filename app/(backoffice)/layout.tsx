@@ -6,7 +6,7 @@ export default function BackofficeLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950">
+    <div className="flex bg-slate-950">
       {/* Sidebar desktop */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
         <Sidebar />

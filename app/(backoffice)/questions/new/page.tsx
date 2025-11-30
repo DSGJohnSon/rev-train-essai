@@ -57,7 +57,7 @@ export default function NewQuestionPage() {
     <>
       <Header title="Nouvelle question" />
       <div className="p-4 sm:p-6 lg:p-8">
-        <div className="max-w-4xl">
+        <div className="max-w-4xl mx-auto">
           {/* Bouton retour */}
           <Button variant="ghost" asChild className="mb-4 text-slate-400 hover:text-white">
             <Link href="/questions">
