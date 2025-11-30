@@ -48,42 +48,36 @@ export default function QuizResultsPage() {
     }
   }, [router]);
 
-  // Charger les détails des questions
+  // Charger les détails des questions en batch (une seule requête)
   const loadQuestionDetails = async (results: QuestionResult[]) => {
     try {
-      const questionPromises = results.map((result) =>
-        fetch(`/api/questions/${result.questionId}`)
-          .then((res) => res.json())
-          .catch((error) => {
-            console.error(`Error fetching question ${result.questionId}:`, error);
-            return { success: false, error: 'Network error' };
-          })
-      );
+      const questionIds = results.map((result) => result.questionId);
+      
+      const response = await fetch('/api/questions/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: questionIds }),
+      });
 
-      const questionsResponses = await Promise.all(questionPromises);
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des questions');
+      }
+
+      const data = await response.json();
       
-      // Extraire les données et logger les erreurs
-      const questionsData = questionsResponses
-        .map((response, index) => {
-          if (response.success && response.data) {
-            return response.data;
-          } else {
-            console.error(
-              `Question ${results[index].questionId} not loaded:`,
-              response.error || 'Unknown error'
-            );
-            return null;
-          }
-        })
-        .filter((q) => q !== null);
-      
+      if (!data.success) {
+        throw new Error(data.error || 'Erreur inconnue');
+      }
+
+      // Filtrer les questions null (non trouvées)
+      const questionsData = data.data.filter((q: any) => q !== null);
       setQuestions(questionsData);
       
       // Afficher un avertissement si certaines questions n'ont pas pu être chargées
-      const failedCount = questionsResponses.filter((r) => !r.success).length;
-      if (failedCount > 0) {
+      if (data.meta.notFound > 0) {
+        console.error('Questions non trouvées:', data.meta.notFoundIds);
         toast.warning(
-          `${failedCount} question(s) n'ont pas pu être chargées. Vérifiez la console pour plus de détails.`
+          `${data.meta.notFound} question(s) n'ont pas pu être chargées (supprimées ou introuvables)`
         );
       }
     } catch (error) {
