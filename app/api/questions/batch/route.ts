@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
 import QuestionModel from '@/lib/models/question';
+import CategoryModel from '@/lib/models/category';
 
 // POST - Récupérer plusieurs questions par leurs IDs
 export async function POST(request: NextRequest) {
