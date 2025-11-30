@@ -14,12 +14,25 @@ export async function POST(request: NextRequest) {
     const validatedData = generateRevisionSchema.parse(body);
     const { selectedCategories } = validatedData;
 
+    console.log('Selected categories:', selectedCategories);
+
     // Construction de la requête MongoDB
     let query: any = {};
 
     // Si des catégories sont sélectionnées, filtrer par ces catégories
     if (selectedCategories.length > 0) {
-      query.categories = { $in: selectedCategories };
+      // Convertir les IDs en ObjectId si nécessaire
+      const mongoose = require('mongoose');
+      const categoryObjectIds = selectedCategories.map(id => {
+        try {
+          return new mongoose.Types.ObjectId(id);
+        } catch (e) {
+          console.error('Invalid category ID:', id);
+          return id;
+        }
+      });
+      query.categories = { $in: categoryObjectIds };
+      console.log('Query:', JSON.stringify(query));
     }
 
     // Compter le nombre total de questions disponibles

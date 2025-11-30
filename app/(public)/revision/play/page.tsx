@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Home } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -34,6 +34,7 @@ export default function RevisionPlayPage() {
     correctAnswers: 0,
     incorrectAnswers: 0,
   });
+  const isNavigatingAway = useRef(false);
 
   // Charger les données depuis sessionStorage
   useEffect(() => {
@@ -79,6 +80,53 @@ export default function RevisionPlayPage() {
 
     return () => clearInterval(interval);
   }, [startTime, revisionData]);
+
+  // Protection contre la navigation non intentionnelle
+  useEffect(() => {
+    if (!revisionData) return;
+
+    // Gérer la fermeture de l'onglet ou le rafraîchissement
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isNavigatingAway.current) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    // Gérer les clics sur les liens
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const link = target.closest('a');
+      
+      if (link && !isNavigatingAway.current) {
+        e.preventDefault();
+        setShowExitDialog(true);
+      }
+    };
+
+    // Gérer le bouton retour du navigateur
+    const handlePopState = (e: PopStateEvent) => {
+      if (!isNavigatingAway.current) {
+        e.preventDefault();
+        window.history.pushState(null, '', window.location.href);
+        setShowExitDialog(true);
+      }
+    };
+
+    // Ajouter un état dans l'historique pour détecter le retour arrière
+    window.history.pushState(null, '', window.location.href);
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('click', handleClick, true);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('click', handleClick, true);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [revisionData]);
 
   // Sélectionner la prochaine question
   const selectNextQuestion = (
@@ -229,6 +277,9 @@ export default function RevisionPlayPage() {
     // Nettoyer les données de révision
     sessionStorage.removeItem('revision-data');
 
+    // Autoriser la navigation
+    isNavigatingAway.current = true;
+
     // Rediriger vers les résultats
     router.push('/revision/results');
   };
@@ -236,6 +287,10 @@ export default function RevisionPlayPage() {
   // Gérer la sortie
   const handleExit = () => {
     sessionStorage.removeItem('revision-data');
+    
+    // Autoriser la navigation
+    isNavigatingAway.current = true;
+    
     router.push('/');
   };
 

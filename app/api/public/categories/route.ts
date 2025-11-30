@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Category from '@/lib/models/category';
 import CategoryType from '@/lib/models/category-type';
+import Question from '@/lib/models/question';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,13 +14,32 @@ export async function GET(request: NextRequest) {
       .sort({ name: 1 })
       .lean();
 
+    // Date limite pour les questions "nouvelles" (15 jours)
+    const fifteenDaysAgo = new Date();
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+
+    // Pour chaque catégorie, vérifier s'il y a des questions récentes
+    const categoriesWithNewFlag = await Promise.all(
+      categories.map(async (cat: any) => {
+        const hasRecentQuestions = await Question.exists({
+          categories: cat._id,
+          createdAt: { $gte: fifteenDaysAgo },
+        });
+
+        return {
+          ...cat,
+          hasNewQuestions: !!hasRecentQuestions,
+        };
+      })
+    );
+
     // Grouper les catégories par type
     const categoryTypes = await CategoryType.find().sort({ name: 1 }).lean();
 
     const groupedCategories = categoryTypes.map((type: any) => ({
       _id: type._id.toString(),
       name: type.name,
-      categories: categories
+      categories: categoriesWithNewFlag
         .filter(
           (cat: any) =>
             cat.categoryType &&
@@ -29,6 +49,7 @@ export async function GET(request: NextRequest) {
           _id: cat._id.toString(),
           name: cat.name,
           icon: cat.icon,
+          hasNewQuestions: cat.hasNewQuestions,
           categoryType: {
             _id: type._id.toString(),
             name: type.name,
@@ -37,10 +58,11 @@ export async function GET(request: NextRequest) {
     }));
 
     // Aussi retourner une liste plate pour faciliter l'utilisation
-    const flatCategories = categories.map((cat: any) => ({
+    const flatCategories = categoriesWithNewFlag.map((cat: any) => ({
       _id: cat._id.toString(),
       name: cat.name,
       icon: cat.icon,
+      hasNewQuestions: cat.hasNewQuestions,
       categoryType: cat.categoryType
         ? {
             _id: cat.categoryType._id.toString(),

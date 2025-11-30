@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Home } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,6 +32,7 @@ export default function QuizPlayPage() {
   const [elapsedTime, setElapsedTime] = useState<number>(0);
   const [showExitDialog, setShowExitDialog] = useState(false);
   const [correctAnswers, setCorrectAnswers] = useState<string[]>([]);
+  const isNavigatingAway = useRef(false);
 
   // Charger les données du quiz depuis sessionStorage
   useEffect(() => {
@@ -62,6 +63,53 @@ export default function QuizPlayPage() {
 
     return () => clearInterval(interval);
   }, [startTime, quizData]);
+
+  // Protection contre la navigation non intentionnelle
+  useEffect(() => {
+    if (!quizData) return;
+
+    // Gérer la fermeture de l'onglet ou le rafraîchissement
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isNavigatingAway.current) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    // Gérer les clics sur les liens
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const link = target.closest('a');
+      
+      if (link && !isNavigatingAway.current) {
+        e.preventDefault();
+        setShowExitDialog(true);
+      }
+    };
+
+    // Gérer le bouton retour du navigateur
+    const handlePopState = (e: PopStateEvent) => {
+      if (!isNavigatingAway.current) {
+        e.preventDefault();
+        window.history.pushState(null, '', window.location.href);
+        setShowExitDialog(true);
+      }
+    };
+
+    // Ajouter un état dans l'historique pour détecter le retour arrière
+    window.history.pushState(null, '', window.location.href);
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('click', handleClick, true);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('click', handleClick, true);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [quizData]);
 
   // Récupérer la question actuelle
   const currentQuestion = quizData?.questions[currentQuestionIndex];
@@ -166,6 +214,9 @@ export default function QuizPlayPage() {
     // Nettoyer les données du quiz
     sessionStorage.removeItem('quiz-data');
 
+    // Autoriser la navigation
+    isNavigatingAway.current = true;
+
     // Rediriger vers les résultats
     router.push('/quiz/results');
   };
@@ -173,6 +224,10 @@ export default function QuizPlayPage() {
   // Gérer la sortie
   const handleExit = () => {
     sessionStorage.removeItem('quiz-data');
+    
+    // Autoriser la navigation
+    isNavigatingAway.current = true;
+    
     router.push('/');
   };
 
