@@ -52,17 +52,40 @@ export default function QuizResultsPage() {
   const loadQuestionDetails = async (results: QuestionResult[]) => {
     try {
       const questionPromises = results.map((result) =>
-        fetch(`/api/questions/${result.questionId}`).then((res) => res.json())
+        fetch(`/api/questions/${result.questionId}`)
+          .then((res) => res.json())
+          .catch((error) => {
+            console.error(`Error fetching question ${result.questionId}:`, error);
+            return { success: false, error: 'Network error' };
+          })
       );
 
       const questionsResponses = await Promise.all(questionPromises);
       
-      // Extraire les données (l'API retourne { success: true, data: question })
+      // Extraire les données et logger les erreurs
       const questionsData = questionsResponses
-        .filter((response) => response.success && response.data)
-        .map((response) => response.data);
+        .map((response, index) => {
+          if (response.success && response.data) {
+            return response.data;
+          } else {
+            console.error(
+              `Question ${results[index].questionId} not loaded:`,
+              response.error || 'Unknown error'
+            );
+            return null;
+          }
+        })
+        .filter((q) => q !== null);
       
       setQuestions(questionsData);
+      
+      // Afficher un avertissement si certaines questions n'ont pas pu être chargées
+      const failedCount = questionsResponses.filter((r) => !r.success).length;
+      if (failedCount > 0) {
+        toast.warning(
+          `${failedCount} question(s) n'ont pas pu être chargées. Vérifiez la console pour plus de détails.`
+        );
+      }
     } catch (error) {
       console.error('Error loading question details:', error);
       toast.error('Erreur lors du chargement des détails');
